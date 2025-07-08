@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>Mapa Road Travel Colombia</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css" />
+  <style>
+    html, body { height: 100%; margin: 0; padding: 0; }
+    body { font-family: 'Inter', Arial, sans-serif; background: #f8f8f8; }
+    #map { height: 100vh; width: 100vw; position: fixed; top: 0; left: 0; z-index: 1; }
+
+    /* ================= POPUP UNIVERSAL (solo .modal-popup) ================ */
+    .modal-popup {
+      position: fixed;
+      left: 50%;
+      bottom: 0;
+      transform: translateX(-50%);
+      background: #fff;
+      border-radius: 18px 18px 0 0;
+      box-shadow: 0 -4px 40px rgba(30,28,18,0.23);
+      padding: 22px 20px 24px 20px;
+      width: 99vw;
+      max-width: 520px;
+      max-height: 72vh;
+      overflow-y: auto;
+      z-index: 3000;
+      font-size: 18px;
+      color: #1e1e1e;
+      display: none;
+      flex-direction: column;
+      gap: 7px;
+      transition: bottom .2s;
+      font-family: inherit;
+    }
+    .modal-popup.show { display: flex; animation: popupUp .27s cubic-bezier(.4,1.2,.7,1) }
+    @keyframes popupUp { from{ bottom:-30%; opacity:0; } to{ bottom:0; opacity:1; } }
+    .modal-close {
+      position: absolute;
+      top: 12px;
+      right: 15px;
+      font-size: 30px;
+      color: #ffa600;
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-weight: bold;
+      z-index: 4000;
+    }
+    .modal-popup .compartir-bar {
+      margin-top: 16px;
+      display: flex;
+      flex-direction: row;
+      gap: 16px;
+      justify-content: flex-end;
+    }
+    .compartir-btn {
+      border: none;
+      background: #f4f4f4;
+      border-radius: 14px;
+      padding: 10px;
+      cursor: pointer;
+      transition: box-shadow .16s;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      box-shadow: 0 1px 4px #ccc8;
+    }
+    .compartir-btn img { width: 26px; height: 26px; }
+    .compartir-btn:active { background: #ffe4b2; }
+
+    /* ==================== DESKTOP (ajusta tamaño solo en PC) ======================= */
+    @media (min-width: 901px) {
+      .modal-popup {
+        min-width: 370px !important;
+        max-width: 520px !important;
+        font-size: 1.1em !important;
+        left: 50% !important;
+        right: unset !important;
+        top: 50% !important;
+        bottom: unset !important;
+        transform: translate(-50%, -50%) !important;
+        padding: 24px 24px 18px 30px !important;
+        border-radius: 20px !important;
+        box-sizing: border-box !important;
+        width: auto !important;
+        display: flex !important;
+        flex-direction: column !important;
+        max-height: 70vh !important;
+      }
+    }
+    @media (max-width: 900px) {
+      .modal-popup {
+        top: 55px;
+        left: 2vw;
+        right: 2vw;
+        max-width: 96vw;
+        min-width: unset;
+        transform: none;
+        padding: 18px 6px 12px 12px;
+        border-radius: 12px;
+        font-size: 1em;
+        width: unset !important;
+        bottom: 0 !important;
+      }
+    }
+    @media (min-width: 700px) {
+      .search-bar { bottom: 32px; max-width: 500px;}
+    }
+    @media (max-width: 420px) {
+      .modal-popup { padding: 12px 3vw 14px 3vw; font-size:16px;}
+      .search-bar { max-width: 97vw; min-width: 110px; width: 97vw; }
+    }
+
+    /* =============== BARRA DE BUSQUEDA =============== */
+    .search-bar {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1001;
+      background: rgba(34,34,34,0.97);
+      border-radius: 40px;
+      box-shadow: 0 4px 22px rgba(0,0,0,0.19);
+      padding: 10px 18px 10px 12px;
+      display: flex;
+      align-items: center;
+      min-width: 220px;
+      max-width: 90vw;
+      width: 80vw;
+      transition: bottom .2s;
+    }
+    .search-bar input[type="text"] {
+      padding: 11px 14px;
+      border: none;
+      border-radius: 12px;
+      font-size: 18px;
+      min-width: 80px;
+      width: 100%;
+      outline: none;
+      background: #fff;
+      color: #222;
+      margin-right: 7px;
+      font-family: inherit;
+    }
+    .search-bar .clear-btn {
+      font-size: 20px;
+      background: #ffa600;
+      color: #fff;
+      border: none;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-left: 0px;
+      box-shadow: 0 1px 4px rgba(255,166,0,0.12);
+      transition: background 0.15s;
+    }
+    .search-bar .clear-btn:hover { background: #ff9100; }
+
+    /* --- Botón de Capas --- */
+    .map-style-btn {
+      position: fixed;
+      top: 22px;
+      right: 18px;
+      z-index: 1102;
+      background: #fff;
+      border-radius: 14px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.13);
+      width: 48px;
+      height: 48px;
+      border: none;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: box-shadow 0.18s, border 0.13s;
+      cursor: pointer;
+      border: 1.2px solid #eee;
+    }
+    .map-style-btn:active { box-shadow: 0 4px 20px #ffa60033; border: 1.5px solid #ffa600; }
+    .map-style-btn img { width: 28px; height: 28px; object-fit: contain; pointer-events: none; opacity: 0.96; }
+
+    /* Mejoras visuales */
+    ::-webkit-scrollbar { width: 8px; background: #f2e9da; }
+    ::-webkit-scrollbar-thumb { background: #e3c788; border-radius: 6px;}
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <button class="map-style-btn" id="styleSwitcherBtn" title="Cambiar estilo de mapa">
+    <img id="styleSwitcherIcon" src="https://i.imgur.com/e3OAH4T.png" alt="Estilo Mapa"/>
+  </button>
+  <div class="search-bar">
+    <input type="text" id="busquedaInput" placeholder="¿Qué quieres hacer hoy? Ej: Quiero acampar en Boyacá"/>
+    <button class="clear-btn" id="clearSearchBtn" title="Limpiar búsqueda">&times;</button>
+  </div>
+  <div id="customPopup" class="modal-popup">
+    <button class="modal-close" id="closePopupBtn">&times;</button>
+    <div id="popupContent"></div>
+    <div class="compartir-bar">
+      <button class="compartir-btn" id="btnWhatsapp"><img src="https://cdn-icons-png.flaticon.com/512/124/124034.png" alt="WhatsApp"></button>
+      <button class="compartir-btn" id="btnEmail"><img src="https://cdn-icons-png.flaticon.com/512/561/561127.png" alt="Email"></button>
+      <button class="compartir-btn" id="btnCopiar"><img src="https://cdn-icons-png.flaticon.com/512/1828/1828911.png" alt="Copiar"></button>
+    </div>
+  </div>
+  <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
+  <script>
+    // --- MAPA ---
+    var accessToken = 'pk.eyJ1Ijoicm9hZHRyYXZlbCIsImEiOiJjbWNkdmVneDcwb2pqMmtwczU1Z2VlMW40In0.VAAxEDBKFtghq39g3nDadA';
+    const stylesArr = [
+      {
+        id: 'Día',
+        tile: L.tileLayer('https://api.mapbox.com/styles/v1/mapbox/streets-v11/tiles/{z}/{x}/{y}?access_token=' + accessToken, { tileSize: 512, zoomOffset: -1 }),
+        icon: 'https://i.imgur.com/e3OAH4T.png'
+      },
+      {
+        id: 'Noche',
+        tile: L.tileLayer('https://api.mapbox.com/styles/v1/mapbox/dark-v10/tiles/{z}/{x}/{y}?access_token=' + accessToken, { tileSize: 512, zoomOffset: -1 }),
+        icon: 'https://i.imgur.com/6QNpuve.png'
+      },
+      {
+        id: 'Satélite',
+        tile: L.tileLayer('https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v12/tiles/{z}/{x}/{y}?access_token=' + accessToken, { tileSize: 512, zoomOffset: -1 }),
+        icon: 'https://i.imgur.com/1ugZRtP.png'
+      }
+    ];
+    var userHour = new Date().getHours();
+    var initialIdx = (userHour >= 18 || userHour < 6) ? 1 : 0;
+    var currentStyleIdx = initialIdx;
+
+    var map = L.map('map', {
+      center: [4.570868, -74.297333],
+      zoom: 6,
+      layers: [stylesArr[currentStyleIdx].tile],
+      zoomControl: false
+    });
+
+    // --- Botón cambiar tipo de mapa ---
+    const styleBtn = document.getElementById('styleSwitcherBtn');
+    const styleIcon = document.getElementById('styleSwitcherIcon');
+    styleBtn.onclick = () => {
+      map.removeLayer(stylesArr[currentStyleIdx].tile);
+      currentStyleIdx = (currentStyleIdx + 1) % stylesArr.length;
+      map.addLayer(stylesArr[currentStyleIdx].tile);
+      styleIcon.src = stylesArr[currentStyleIdx].icon;
+    };
+
+    // --- ICONOS DE CATEGORÍA ---
+    const ICONOS = {
+      "Camping": 'https://i.imgur.com/111dh97.png',
+      "Alojamiento": 'https://i.imgur.com/ZRkDbVG.png',
+      "Taller": 'https://i.imgur.com/CGhOpjC.png',
+      "default": 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png'
+    };
+
+    var markers = L.markerClusterGroup();
+    var markerReferenceList = [];
+    var allData = [];
+    var busquedaActual = "";
+    function normalizarTexto(txt) {
+      return (txt||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    }
+
+    // --- CARGA DE DATOS JSON ---
+    fetch('https://raw.githubusercontent.com/vanesavilla018/roadtravel/refs/heads/main/colombia.json')
+      .then(response => response.json())
+      .then(data => {
+        allData = data;
+        crearYMostrarMarkers();
+
+        // Si hay lat/lng en URL, buscar el marker correspondiente y abrir el popup
+        const params = new URLSearchParams(window.location.search);
+        if (params.has('lat') && params.has('lng')) {
+          const paramLat = parseFloat(params.get('lat'));
+          const paramLng = parseFloat(params.get('lng'));
+          let minDist = 0.0005;
+          let markerObj = markerReferenceList.find(obj => 
+            Math.abs(obj.lat - paramLat) < minDist && Math.abs(obj.lng - paramLng) < minDist
+          );
+          if (markerObj) {
+            map.setView([markerObj.lat, markerObj.lng], 16);
+            setTimeout(() => {
+              showModalPopup(markerObj.popupContent, markerObj.marker, markerObj);
+            }, 550);
+          } else {
+            map.setView([paramLat, paramLng], 13);
+          }
+        }
+      });
+
+    // --- CREAR Y MOSTRAR MARKERS ---
+    function crearYMostrarMarkers() {
+      markers.clearLayers();
+      markerReferenceList = [];
+      let palabras = busquedaActual
+        ? normalizarTexto(busquedaActual).split(/\s+/).filter(w => w.length > 1)
+        : [];
+      allData.forEach(function(punto) {
+        let lat = punto.Latitude;
+        let lng = punto.Longitude;
+        let nombre = punto.Name || "";
+        let descripcion = punto.Description || "";
+        let categoria = punto.Category || "Sin categoría";
+        let fecha = punto["Date verified"] ? punto["Date verified"].split(" ")[0] : "";
+        let texto = normalizarTexto(nombre + " " + descripcion + " " + categoria);
+        if (palabras.length && !palabras.every(w => texto.includes(w))) return;
+        let iconoMarker = L.icon({
+          iconUrl: ICONOS[categoria] || ICONOS["default"],
+          iconSize: [30, 30],
+          iconAnchor: [15, 30],
+          popupAnchor: [0, -30]
+        });
+        let popupContent = `
+          <b style="font-size:1.12em;">${nombre}</b><br>
+          <b>Categoría:</b> ${categoria}<br>
+          <b>Descripción:</b> ${descripcion}<br>
+          <b>Fecha verificación:</b> ${fecha}
+        `;
+        let marker = L.marker([lat, lng], { icon: iconoMarker });
+        marker.on('click', () => {
+          showModalPopup(popupContent, marker, { lat, lng, nombre });
+        });
+        markerReferenceList.push({ lat, lng, marker, popupContent, nombre });
+        markers.addLayer(marker);
+      });
+      map.addLayer(markers);
+    }
+
+    // --- MODAL POPUP ---
+    function showModalPopup(html, marker=null, puntoData=null) {
+      document.getElementById("popupContent").innerHTML = html;
+      document.getElementById("customPopup").classList.add("show");
+      document.body.style.overflow = "hidden";
+      let urlBase = window.location.origin + window.location.pathname;
+      let urlLugar = `${urlBase}?lat=${puntoData.lat}&lng=${puntoData.lng}`;
+      let nombreSitio = encodeURIComponent(puntoData && puntoData.nombre ? puntoData.nombre : "");
+      document.getElementById("btnWhatsapp").onclick = () => {
+        window.open(`https://wa.me/?text=Mira este lugar: ${nombreSitio} ${urlLugar}`, '_blank');
+      };
+      document.getElementById("btnEmail").onclick = () => {
+        window.open(`mailto:?subject=Lugar%20interesante:%20${nombreSitio}&body=Mira%20este%20lugar:%20${urlLugar}`);
+      };
+      document.getElementById("btnCopiar").onclick = () => {
+        navigator.clipboard.writeText(urlLugar);
+        document.getElementById("btnCopiar").innerHTML = "<img src='https://cdn-icons-png.flaticon.com/512/1828/1828911.png' width=22 style='vertical-align:middle;'/>";
+        setTimeout(()=>{
+          document.getElementById("btnCopiar").innerHTML = "<img src='https://cdn-icons-png.flaticon.com/512/1828/1828911.png' width=22 style='vertical-align:middle;'/>";
+        }, 1200);
+      };
+      setTimeout(()=>{ document.getElementById("customPopup").scrollIntoView({behavior:"smooth", block:"center"}); }, 250);
+    }
+    document.getElementById("closePopupBtn").onclick = () => {
+      document.getElementById("customPopup").classList.remove("show");
+      document.body.style.overflow = "";
+    };
+
+    // --- BUSCADOR ---
+    var inputBusqueda = document.getElementById("busquedaInput");
+    inputBusqueda.addEventListener("keyup", function(e) {
+      if (e.key === "Enter") {
+        busquedaActual = this.value;
+        document.getElementById("customPopup").classList.remove("show");
+        crearYMostrarMarkers();
+      }
+    });
+    document.getElementById("clearSearchBtn").onclick = function() {
+      inputBusqueda.value = "";
+      busquedaActual = "";
+      document.getElementById("customPopup").classList.remove("show");
+      crearYMostrarMarkers();
+    };
+
+    // Cierra popup si clic fuera en mobile
+    document.body.addEventListener('click', function(e){
+      if(!e.target.closest('.modal-popup') && !e.target.closest('.leaflet-marker-icon') && window.innerWidth < 700){
+        document.getElementById("customPopup").classList.remove("show");
+        document.body.style.overflow = "";
+      }
+    });
+  </script>
+</body>
+</html>
