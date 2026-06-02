@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>REDE DE APOIO AO CARAVANISTA</name>
+    <description>Nosso objetivo é Cadastrar Caravanistas, fábricas de Motor Home, mecânicos recomendados e pontos Grátis para Pernoite </description>
+    <NetworkLink>
+      <name>REDE DE APOIO AO CARAVANISTA</name>
+      <Link>
+        <href><![CDATA[https://www.google.com/maps/d/u/0/kml?forcekml=1&mid=1RRhvVi7DfmAEZaVhJ8PyxlORHpYL6Hc]]></href>
+      </Link>
+    </NetworkLink>
+  </Document>
+</kml>
